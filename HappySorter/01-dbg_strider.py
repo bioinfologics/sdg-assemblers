@@ -283,3 +283,5 @@ ws.sdg.write_to_gfa1(args.output_prefix+"_lrr_solved.gfa")
 kc.update_graph_counts()
 kc.compute_all_kcis()
 print(ws.sdg.stats_by_kci())
+
+ws.dump(args.output_prefix+"_strided.sdgws")
