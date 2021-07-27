@@ -12,6 +12,12 @@ parser.add_argument("-o", "--output_prefix", help="prefix for output files", typ
 
 args = parser.parse_args()
 
+def write_orders_to_fasta(ts,filename):
+    with open(filename,'w') as f:
+        for sid,s in ts.sorters.items():
+            f.write(f'>sorter{sid:06d}\n{"N".join([ws.sdg.get_nodeview(x).sequence() for x in s.order.as_signed_nodes()])}\n')
+
+
 ws=SDG.WorkSpace(f'{args.output_prefix}_anchors.sdgws')
 #kc=ws.get_kmer_counter('main')
 
