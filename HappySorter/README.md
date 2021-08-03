@@ -35,20 +35,20 @@ usage: 01-dbg_strider.py [-h] -o OUTPUT_PREFIX -p PAIRED_DATASTORE -l
 ```
 
 Required arguments;
--o/--output_prefix 		prefix for the output files
--p/--paired_datastore		paired reads datastore
--l/--long_datastore		long reads datastore
--u/--unique_coverage		unique coverage at 31-mers
+-o/--output_prefix 		prefix for the output files   
+-p/--paired_datastore		paired reads datastore   
+-l/--long_datastore		long reads datastore   
+-u/--unique_coverage		unique coverage at 31-mers   
 
 Optional arguments:
--k/--k				k value for graph construction (default=63)
--c/--min_coverage		min coverage for graph construction (default=3)
--b/--disk_batches		disk batches for graph construction (default=1)
---low_node_coverage		low coverage for short node cleanup (default=5)
---low_bubble_coverage 		low coverage for bubble cleanup (default=5)
---lr_min_support		long read min support to expand canonical repeats (default=5)
---lr_snr			long read signal-to-noise ratio to expand canonical repeats (default=5)
---lr_max_noise			long read max_noise to expand canonical repeats (default=3)
+-k/--k				k value for graph construction (default=63)   
+-c/--min_coverage		min coverage for graph construction (default=3)   
+-b/--disk_batches		disk batches for graph construction (default=1)   
+--low_node_coverage		low coverage for short node cleanup (default=5)   
+--low_bubble_coverage 		low coverage for bubble cleanup (default=5)   
+--lr_min_support		long read min support to expand canonical repeats (default=5)   
+--lr_snr			long read signal-to-noise ratio to expand canonical repeats (default=5)   
+--lr_max_noise			long read max_noise to expand canonical repeats (default=3)    
 
 ## 02-anchors_rtg.py
 
@@ -57,10 +57,10 @@ usage: 02-anchors_rtg.py [-h] -o OUTPUT_PREFIX -m MIN_COVERAGE -M MAX_COVERAGE
                          -s MAX_ANCHOR_SIZE
 ```
 Required arguments;
--o/--output_prefix		prefix for the output files
--m/--min_coverage 		min anchor coverage
--M/--max_coverage		max anchor coverage
--s/--max_anchor_size		max anchor size (in 31-mers)
+-o/--output_prefix		prefix for the output files   
+-m/--min_coverage 		min anchor coverage   
+-M/--max_coverage		max anchor coverage   
+-s/--max_anchor_size		max anchor size (in 31-mers)  
 
 ## 03-make_orders.py
 
