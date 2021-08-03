@@ -32,15 +32,14 @@ usage: 01-dbg_strider.py [-h] -o OUTPUT_PREFIX -p PAIRED_DATASTORE -l
                          [--low_bubble_coverage LOW_BUBBLE_COVERAGE]
                          [--lr_min_support LR_MIN_SUPPORT] [--lr_snr LR_SNR]
                          [--lr_max_noise LR_MAX_NOISE]
-```
 
-Required arguments;
+Required arguments;   
 -o/--output_prefix 		prefix for the output files   
 -p/--paired_datastore		paired reads datastore   
 -l/--long_datastore		long reads datastore   
 -u/--unique_coverage		unique coverage at 31-mers   
 
-Optional arguments:
+Optional arguments;   
 -k/--k				k value for graph construction (default=63)   
 -c/--min_coverage		min coverage for graph construction (default=3)   
 -b/--disk_batches		disk batches for graph construction (default=1)   
@@ -49,6 +48,8 @@ Optional arguments:
 --lr_min_support		long read min support to expand canonical repeats (default=5)   
 --lr_snr			long read signal-to-noise ratio to expand canonical repeats (default=5)   
 --lr_max_noise			long read max_noise to expand canonical repeats (default=3)    
+
+```
 
 ## 02-anchors_rtg.py
 
