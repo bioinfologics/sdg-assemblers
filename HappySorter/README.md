@@ -56,20 +56,21 @@ Optional arguments;
 ```
 usage: 02-anchors_rtg.py [-h] -o OUTPUT_PREFIX -m MIN_COVERAGE -M MAX_COVERAGE
                          -s MAX_ANCHOR_SIZE
-```
+
 Required arguments;
 -o/--output_prefix		prefix for the output files   
 -m/--min_coverage 		min anchor coverage   
 -M/--max_coverage		max anchor coverage   
 -s/--max_anchor_size		max anchor size (in 31-mers)  
+```
 
 ## 03-make_orders.py
 
 ```
 usage: 03-make_orders.py [-h] -o OUTPUT_PREFIX
-```
 
 Required arguments;
 -o/--output_prefix              prefix for the output files
+```
 
 ## 04-make_outputs.py
