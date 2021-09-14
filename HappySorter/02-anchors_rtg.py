@@ -6,17 +6,22 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
+parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
 parser.add_argument("-m", "--min_coverage", help="min anchor coverage", type=int, required=True)
 parser.add_argument("-M", "--max_coverage", help="max anchor coverage", type=int, required=True)
+parser.add_argument( "--min_kci", help="min contig kmer coverage index", type=int, default=0)
+parser.add_argument( "--max_kci", help="max_contig kmer coverage index", type=float, default=1.25)
 parser.add_argument("-s", "--max_anchor_size", help="max anchor size (in 31-mers)", type=int, required=True)
 
 args = parser.parse_args()
 
 ws=SDG.WorkSpace(f'{args.output_prefix}_strided.sdgws')
 kc=ws.get_kmer_counter('main')
+kc.set_kci_peak(args.unique_coverage)
+kc.compute_all_kcis()
 
 ws2=SDG.WorkSpace()
-SDG.GraphContigger(ws).contig_reduction_to_unique_kmers(ws2,"main","pe",args.min_coverage,args.max_coverage,args.max_anchor_size);
+SDG.GraphContigger(ws).contig_reduction_to_unique_kmers(ws2,"main","pe",args.min_coverage,args.max_coverage,args.max_anchor_size,args.min_kci,args.max_kci);
 
 peds = ws2.add_paired_reads_datastore(ws.list_paired_reads_datastores()[0]+".prseq")
 peds.mapper.path_reads(k=31)
