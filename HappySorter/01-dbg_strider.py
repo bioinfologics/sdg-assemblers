@@ -13,6 +13,7 @@ parser.add_argument("--kci_k", help="k value for KCI", type=int, default=31)
 parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
 parser.add_argument("-c", "--min_coverage", help="min coverage for graph construction", type=int, default=3)
 parser.add_argument("-b", "--disk_batches", help="disk batches for graph construction", type=int, default=1)
+parser.add_argument("--strider_rounds", help="rounds of strider (experimental)", type=int, default=1)
 parser.add_argument("--low_node_coverage", help="low coverage for short node cleanup", type=int, default=5)
 parser.add_argument("--low_bubble_coverage", help="low coverage for bubble cleanup", type=int, default=5)
 parser.add_argument("--lr_min_support", help="long read min support to expand canonical repeats", type=int, default=5)
@@ -83,11 +84,9 @@ print(ws.sdg.stats_by_kci())
 
 ws.sdg.write_to_gfa1(args.output_prefix+"_dbg.gfa")
 
-peds.mapper.path_reads()
-
 s=SDG.Strider(ws)
 s.add_datastore(peds)
-s.stride_from_anchors(min_size=1)
+
 
 def strider_run_from_cpp():
     
@@ -215,12 +214,16 @@ def strider_run_from_cpp():
     print("%d low coverage, low information nodes removed"%removed)
     ws.sdg.join_all_unitigs()
 
-strider_run_from_cpp()
-kc.update_graph_counts()
-kc.compute_all_kcis()
-print(ws.sdg.stats_by_kci())
-ws.sdg.write_to_gfa1(args.output_prefix+"_strided.gfa")
+for sp in range(1,args.strider_rounds+1):
+    peds.mapper.path_reads()
+    s.stride_from_anchors(min_size=1)
+    strider_run_from_cpp()
+    kc.update_graph_counts()
+    kc.compute_all_kcis()
+    print(f"After {sp} rounds of strider:")
+    print(ws.sdg.stats_by_kci())
 
+ws.sdg.write_to_gfa1(args.output_prefix+"_strided.gfa")
 
 
 def is_canonical_repeat(nid):
