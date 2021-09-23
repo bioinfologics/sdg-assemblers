@@ -9,6 +9,7 @@ parser.add_argument("-o", "--output_prefix", help="prefix for output files", typ
 parser.add_argument("-p", "--paired_datastore", help="paired reads datastore", type=str, required=True)
 parser.add_argument("-l", "--long_datastore", help="long reads datastore", type=str, required=True)
 parser.add_argument("-k", "--k", help="k value for graph construction", type=int, default=63)
+parser.add_argument("--kci_k", help="k value for KCI", type=int, default=31)
 parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
 parser.add_argument("-c", "--min_coverage", help="min coverage for graph construction", type=int, default=3)
 parser.add_argument("-b", "--disk_batches", help="disk batches for graph construction", type=int, default=1)
@@ -35,7 +36,7 @@ os.replace('small_K.freqs',f'{args.output_prefix}_small_K.freqs')
 
 gc=SDG.GraphContigger(ws)
 gc.clip_tips(300)
-kc=ws.add_kmer_counter("main")
+kc=ws.add_kmer_counter("main",args.kci_k)
 kc.add_count("pe",peds)
 
 LOW_CVG=args.low_node_coverage
