@@ -4,6 +4,11 @@ import argparse
 from collections import Counter
 import os
 
+def print_step_banner(s):
+    print('\n'+'*'*(len(s)+4))
+    print(f'* {s} *')
+    print('*'*(len(s)+4)+"\n")
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
 parser.add_argument("-p", "--paired_datastore", help="paired reads datastore", type=str, required=True)
@@ -13,16 +18,20 @@ parser.add_argument("--kci_k", help="k value for KCI", type=int, default=31)
 parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
 parser.add_argument("-c", "--min_coverage", help="min coverage for graph construction", type=int, default=3)
 parser.add_argument("-b", "--disk_batches", help="disk batches for graph construction", type=int, default=1)
-parser.add_argument("--strider_rounds", help="rounds of strider (experimental)", type=int, default=1)
-parser.add_argument("--low_node_coverage", help="low coverage for short node cleanup", type=int, default=5)
+parser.add_argument("--strider_rounds", help="rounds of strider (experimental)", type=int, default=3)
+parser.add_argument("--low_node_coverage", help="low coverage for short node cleanup", type=int, default=0)
 parser.add_argument("--low_bubble_coverage", help="low coverage for bubble cleanup", type=int, default=5)
+parser.add_argument("--pe_rep_min_support", help="paired read min support to expand canonical repeats", type=int, default=5)
+parser.add_argument("--pe_rep_max_noise", help="paired read max noise to expand canonical repeats", type=int, default=2)
 parser.add_argument("--lr_min_support", help="long read min support to expand canonical repeats", type=int, default=5)
 parser.add_argument("--lr_snr", help="long read SNR to expand canonical repeats", type=int, default=5)
 parser.add_argument("--lr_max_noise", help="long read max_noise to expand canonical repeats", type=int, default=3)
+parser.add_argument("--dump_every_step", help="dumps each step for debugging, uses LOADS of disk", type=bool, default=False)
 
 #parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
 args = parser.parse_args()
 
+print_step_banner("INITIAL GRAPH CONSTRUCTION")
 
 K=args.k
 MIN_CVG=args.min_coverage
@@ -34,30 +43,47 @@ peds = ws.add_paired_reads_datastore(args.paired_datastore)
 lords = ws.add_long_reads_datastore(args.long_datastore)
 SDG.GraphMaker(ws.sdg).new_graph_from_paired_datastore(peds,K,MIN_CVG,NUM_BATCHES)
 os.replace('small_K.freqs',f'{args.output_prefix}_small_K.freqs')
+print(ws.sdg.simple_structure_stats())
+
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_00_dbg_raw.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_00_dgb_raw.gfa')
+
+print_step_banner("GRAPH CLEANUP")
 
 gc=SDG.GraphContigger(ws)
+print("Tip clipping:")
 gc.clip_tips(300)
 kc=ws.add_kmer_counter("main",args.kci_k)
 kc.add_count("pe",peds)
+kc.set_kci_peak(args.unique_coverage)
+kc.compute_all_kcis()
+
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_01_tipclipped.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_01_tipclipped.gfa')
 
 LOW_CVG=args.low_node_coverage
-to_delete=set()
-for nv in ws.sdg.get_all_nodeviews():
-    if nv.size()>125: continue
-    nvlc=len([x for x in nv.kmer_coverage('main','pe') if x<=LOW_CVG])
-    if nvlc:
-        to_delete.add(nv.node_id())
+if LOW_CVG>0:
+    to_delete=set()
+    for nv in ws.sdg.get_all_nodeviews():
+        if nv.size()>125: continue
+        nvlc=len([x for x in nv.kmer_coverage('main','pe') if x<=LOW_CVG])
+        if nvlc:
+            to_delete.add(nv.node_id())
 
-print(len(to_delete))
-for x in to_delete:
-    ws.sdg.remove_node(x)
+    print(f'Removing {len(to_delete)} small nodes with low k-mer coverage')
+    for x in to_delete:
+        ws.sdg.remove_node(x)
+    ws.sdg.join_all_unitigs()
+    kc.update_graph_counts()
 
-ws.sdg.join_all_unitigs()
-kc.update_graph_counts()
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_02_lowcov.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_02_lowcov.gfa')
 
 BUBBLE_SIZE=125
 LOW_CVG=args.low_bubble_coverage
-
 to_delete=[]
 for nv in ws.sdg.get_all_nodeviews():
     if nv.size()<=BUBBLE_SIZE and len(nv.parallels())==1:
@@ -71,18 +97,37 @@ for nv in ws.sdg.get_all_nodeviews():
             if onlc and not nvlc:
                 #print('del',on,onlc,nv,nvlc)
                 to_delete.append(abs(on.node_id()))
-print(len(to_delete))
-for x in to_delete:
-    ws.sdg.remove_node(x)
+print(f'Removing {len(to_delete)} 2K-1 bubbles with low k-mer coverage')
+if len(to_delete)>0:
+    for x in to_delete:
+        ws.sdg.remove_node(x)
+    ws.sdg.join_all_unitigs()
+    kc.update_graph_counts()
 
-ws.sdg.join_all_unitigs()
-
-kc.update_graph_counts()
-#for x in enumerate(kc.count_spectra("pe",100)[:-1]): print(x)
-kc.set_kci_peak(args.unique_coverage)
 print(ws.sdg.stats_by_kci())
 
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_03_popped.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_03_popped.gfa')
+
+print_step_banner("CANONICAL REPEAT EXPANSION")
+
+peds.mapper.path_reads()
+c=SDG.GraphContigger(ws)
+c.solve_canonical_repeats_with_single_paths(peds,min_support=args.pe_rep_min_support,max_noise=args.pe_rep_max_noise)
+kc.update_graph_counts()
+
+print(ws.sdg.stats_by_kci())
+
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_04_crexp.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_04_crexp.gfa')
+
+print_step_banner("STRIDER")
 ws.sdg.write_to_gfa1(args.output_prefix+"_dbg.gfa")
+peds.mapper.path_reads()
+ws.dump(args.output_prefix+"_dbg.sdgws")
+peds.mapper.dump_readpaths(f'{args.output_prefix}_dbg.pepaths')
 
 s=SDG.Strider(ws)
 s.add_datastore(peds)
@@ -215,7 +260,7 @@ def strider_run_from_cpp():
     ws.sdg.join_all_unitigs()
 
 for sp in range(1,args.strider_rounds+1):
-    peds.mapper.path_reads()
+    if sp!=1: peds.mapper.path_reads()
     s.stride_from_anchors(min_size=1)
     strider_run_from_cpp()
     kc.update_graph_counts()
@@ -223,8 +268,14 @@ for sp in range(1,args.strider_rounds+1):
     print(f"After {sp} rounds of strider:")
     print(ws.sdg.stats_by_kci())
 
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_05_strided.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_05_strided.gfa')
+
 ws.sdg.write_to_gfa1(args.output_prefix+"_strided.gfa")
 
+
+print_step_banner("LONG READ REPEAT RESOLUTION")
 
 def is_canonical_repeat(nid):
     nv=ws.sdg.get_nodeview(nid)
@@ -281,6 +332,9 @@ print("%d / %d canonical repeats solved"%(solved_cr,total_cr))
 ge.apply_all()
 ws.sdg.join_all_unitigs()
 
+if args.dump_every_step:
+    ws.dump(f'{args.output_prefix}_06_lrreps.sdgws')
+    ws.sdg.write_to_gfa1(f'{args.output_prefix}_06_lrreps.gfa')
 
 ws.sdg.write_to_gfa1(args.output_prefix+"_lrr_solved.gfa")
 
