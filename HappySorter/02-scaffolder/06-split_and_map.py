@@ -67,7 +67,7 @@ print(ws.sdg.stats_by_kci())
 
 lrr=SDG.LongReadsRecruiter(ws.sdg,lords,k=31)
 
-if args.max_anchor_coverage:
+if args.max_anchormap_coverage:
     if kc.k==31:
         kc31==kc
     else:
