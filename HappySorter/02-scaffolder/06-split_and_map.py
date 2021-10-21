@@ -71,7 +71,7 @@ if args.max_anchormap_coverage:
     if kc.k==31:
         kc31==kc
     else:
-        kc31=ws.add_kmer_counter("main31",args.kci_k)
+        kc31=ws.add_kmer_counter("main31",31)
         kc31.add_count("pe",peds)
     lrr.anchormap(kcname='main31', countname='pe', fmax=args.max_anchormap_coverage, fmin=args.max_anchormap_coverage, graph_fmin=1, graph_fmax=1)
 else: lrr.map()
