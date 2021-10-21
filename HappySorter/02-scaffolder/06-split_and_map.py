@@ -15,7 +15,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_workspace", help="input workspace", type=str, required=True)
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
 parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
-parser.add_argument("-m", "--max_anchor_coverage", help="max kcov value for anchormap (default: 0, uses map without anchor filtering)", type=int, default=0)
+parser.add_argument("-m", "--min_anchormap_coverage", help="min read kcov value for anchormap (default: 0)", type=int, default=0)
+parser.add_argument("-M", "--max_anchormap_coverage", help="max read kcov value for anchormap (default: 0, uses map without anchor filtering)", type=int, default=0)
 parser.add_argument("-s", "--split_size", help="break contigs into chunks of roughly...", type=int, default=2000)
 parser.add_argument("-l", "--long_datastore", help="long reads datastore (default: '' uses the first datastore in the input workspace)", type=str, default='')
 args = parser.parse_args()
@@ -49,9 +50,9 @@ def split_long_contigs(split_size):
                 for lf in nv.next():
                     ws.sdg.add_link(-new_nid,lf.node().node_id(),lf.distance())
             else:
-                new_nid=ws.sdg.add_node(seq[cstart:splits[ci+1]+62],False)
+                new_nid=ws.sdg.add_node(seq[cstart:splits[ci+1]+30],False)
             if last_nid:
-                ws.sdg.add_link(-last_nid,new_nid,-62)
+                ws.sdg.add_link(-last_nid,new_nid,-30)
             else:
                 for lb in nv.prev():
                     ws.sdg.add_link(-lb.node().node_id(),new_nid,lb.distance())
@@ -72,7 +73,7 @@ if args.max_anchor_coverage:
     else:
         kc31=ws.add_kmer_counter("main31",args.kci_k)
         kc31.add_count("pe",peds)
-    lrr.anchormap(kcname='main31', countname='pe', fmax=args.max_anchor_coverage, graph_fmin=1, graph_fmax=1)
+    lrr.anchormap(kcname='main31', countname='pe', fmax=args.max_anchor_coverage, fmin=args.max_anchor_coverage, graph_fmin=1, graph_fmax=1)
 else: lrr.map()
 
 lrr.dump(f'{args.output_prefix}_06_split.lrr')
