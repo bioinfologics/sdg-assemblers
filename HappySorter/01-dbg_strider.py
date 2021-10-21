@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 -x
 import SDGpython as SDG
 import argparse
 from collections import Counter
@@ -53,58 +53,38 @@ print_step_banner("GRAPH CLEANUP")
 
 gc=SDG.GraphContigger(ws)
 print("Tip clipping:")
-gc.clip_tips(300)
+gc.clip_tips(200)
 kc=ws.add_kmer_counter("main",args.kci_k)
 kc.add_count("pe",peds)
 kc.set_kci_peak(args.unique_coverage)
-kc.compute_all_kcis()
+print(ws.sdg.stats_by_kci())
+
 
 if args.dump_every_step:
     ws.dump(f'{args.output_prefix}_01_tipclipped.sdgws')
     ws.sdg.write_to_gfa1(f'{args.output_prefix}_01_tipclipped.gfa')
 
+print("Low kcov node removal:")
 LOW_CVG=args.low_node_coverage
-if LOW_CVG>0:
-    to_delete=set()
-    for nv in ws.sdg.get_all_nodeviews():
-        if nv.size()>125: continue
-        nvlc=len([x for x in nv.kmer_coverage('main','pe') if x<=LOW_CVG])
-        if nvlc:
-            to_delete.add(nv.node_id())
+gc.remove_low_kcov_nodes("main","pe",LOW_CVG,200)
+kc.update_graph_counts()
+print("Tip clipping:")
+gc.clip_tips(200)
+print(ws.sdg.stats_by_kci())
 
-    print(f'Removing {len(to_delete)} small nodes with low k-mer coverage')
-    for x in to_delete:
-        ws.sdg.remove_node(x)
-    ws.sdg.join_all_unitigs()
-    kc.update_graph_counts()
-
+peds.mapper.path_reads()
 if args.dump_every_step:
     ws.dump(f'{args.output_prefix}_02_lowcov.sdgws')
     ws.sdg.write_to_gfa1(f'{args.output_prefix}_02_lowcov.gfa')
 
-BUBBLE_SIZE=125
-LOW_CVG=args.low_bubble_coverage
-to_delete=[]
-for nv in ws.sdg.get_all_nodeviews():
-    if nv.size()<=BUBBLE_SIZE and len(nv.parallels())==1:
-        on=nv.parallels()[0]
-        if on.size()<=BUBBLE_SIZE and abs(on.node_id())>nv.node_id():
-            nvlc=len([x for x in nv.kmer_coverage('main','pe') if x<=LOW_CVG])
-            onlc=len([x for x in on.kmer_coverage('main','pe') if x<=LOW_CVG])
-            if nvlc and not onlc:
-                #print('del',nv,nvlc,on,onlc)
-                to_delete.append(nv.node_id())
-            if onlc and not nvlc:
-                #print('del',on,onlc,nv,nvlc)
-                to_delete.append(abs(on.node_id()))
-print(f'Removing {len(to_delete)} 2K-1 bubbles with low k-mer coverage')
-if len(to_delete)>0:
-    for x in to_delete:
-        ws.sdg.remove_node(x)
-    ws.sdg.join_all_unitigs()
-    kc.update_graph_counts()
 
+
+BUBBLE_SIZE=200
+LOW_CVG=args.low_bubble_coverage
+gc.pop_bubbles(peds,BUBBLE_SIZE,2*LOW_CVG,LOW_CVG,5)
+kc.update_graph_counts()
 print(ws.sdg.stats_by_kci())
+peds.mapper.path_reads()
 
 if args.dump_every_step:
     ws.dump(f'{args.output_prefix}_03_popped.sdgws')
@@ -112,22 +92,18 @@ if args.dump_every_step:
 
 print_step_banner("CANONICAL REPEAT EXPANSION")
 
-peds.mapper.path_reads()
 c=SDG.GraphContigger(ws)
 c.solve_canonical_repeats_with_single_paths(peds,min_support=args.pe_rep_min_support,max_noise=args.pe_rep_max_noise)
 kc.update_graph_counts()
-
 print(ws.sdg.stats_by_kci())
 
+peds.mapper.path_reads()
 if args.dump_every_step:
     ws.dump(f'{args.output_prefix}_04_crexp.sdgws')
     ws.sdg.write_to_gfa1(f'{args.output_prefix}_04_crexp.gfa')
 
 print_step_banner("STRIDER")
-ws.sdg.write_to_gfa1(args.output_prefix+"_dbg.gfa")
-peds.mapper.path_reads()
-ws.dump(args.output_prefix+"_dbg.sdgws")
-peds.mapper.dump_readpaths(f'{args.output_prefix}_dbg.pepaths')
+
 
 s=SDG.Strider(ws)
 s.add_datastore(peds)
@@ -274,17 +250,9 @@ if args.dump_every_step:
 
 ws.sdg.write_to_gfa1(args.output_prefix+"_strided.gfa")
 
-
 print_step_banner("LONG READ REPEAT RESOLUTION")
-
-def is_canonical_repeat(nid):
-    nv=ws.sdg.get_nodeview(nid)
-    if len(nv.next())!=2 or len(nv.prev())!=2 or len(set([abs(x) for x in [y.node().node_id() for y in nv.next()+nv.prev()]+[abs(nid)]]))!=5: return False
-    return True
     
-    
-def solve_with_llr2(nid,min_support=5,max_noise=2,snr=3,verbose=False):
-    
+def solve_with_llr2(nid,min_support=5,max_noise=2,snr=3,verbose=False):    
     nA,nB=[x.node().node_id() for x in ws.sdg.get_nodeview(nid).next()]
     pA,pB=[x.node().node_id() for x in ws.sdg.get_nodeview(nid).prev()]
     apA,apB,anA,anB=abs(pA),abs(pB),abs(nA),abs(nB)
@@ -320,7 +288,7 @@ total_cr=0
 solved_cr=0
 for x in ws.sdg.get_all_nodeviews():
     nid=x.node_id()
-    if is_canonical_repeat(nid):
+    if x.is_canonical_repeat():
         total_cr+=1
         sol=solve_with_llr2(nid,args.lr_min_support,args.lr_max_noise,args.lr_snr)
         if sol!=[]:
@@ -336,10 +304,23 @@ if args.dump_every_step:
     ws.dump(f'{args.output_prefix}_06_lrreps.sdgws')
     ws.sdg.write_to_gfa1(f'{args.output_prefix}_06_lrreps.gfa')
 
-ws.sdg.write_to_gfa1(args.output_prefix+"_lrr_solved.gfa")
+# for sp in range(1,args.strider_rounds+1):
+#     peds.mapper.path_reads()
+#     s.stride_from_anchors(min_size=1)
+#     strider_run_from_cpp()
+#     kc.update_graph_counts()
+#     kc.compute_all_kcis()
+#     print(f"After {sp} rounds of strider:")
+#     print(ws.sdg.stats_by_kci())
+
+ws.sdg.write_to_gfa1(args.output_prefix+"_last.gfa")
 
 kc.update_graph_counts()
 kc.compute_all_kcis()
 print(ws.sdg.stats_by_kci())
+peds.mapper.path_reads()
 
-ws.dump(args.output_prefix+"_strided.sdgws")
+ws.dump(args.output_prefix+"_last.sdgws")
+
+lrr.map()
+lrr.dump(args.output_prefix+"_last.lrr")
