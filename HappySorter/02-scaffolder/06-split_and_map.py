@@ -70,10 +70,12 @@ lrr=SDG.LongReadsRecruiter(ws.sdg,lords,k=31)
 if args.max_anchormap_coverage:
     if kc.k==31:
         kc31=kc
+        kc_name="main"
     else:
         kc31=ws.add_kmer_counter("main31",31)
         kc31.add_count("pe",peds)
-    lrr.anchormap(kcname='main31', countname='pe', fmin=args.min_anchormap_coverage, fmax=args.max_anchormap_coverage, graph_fmin=1, graph_fmax=1)
+        kc_name="main31"
+    lrr.anchormap(kcname=kc_name, countname='pe', fmin=args.min_anchormap_coverage, fmax=args.max_anchormap_coverage, graph_fmin=1, graph_fmax=1)
 else: lrr.map()
 
 lrr.dump(f'{args.output_prefix}_06_split.lrr')
