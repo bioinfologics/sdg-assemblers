@@ -42,7 +42,7 @@ def split_long_contigs(split_size):
         nv=ws.sdg.get_nodeview(nid)
         seq=nv.sequence()
         nns=ceil(nv.size()/ceil(nv.size()/split_size))
-        splits=list(range(0,nv.size()+1-nns,nns))
+        splits=list(range(0,nv.size(),nns))
         last_nid=0
         for ci,cstart in enumerate(splits):
             if ci==len(splits)-1: 
