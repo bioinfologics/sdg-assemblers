@@ -41,21 +41,22 @@ def split_long_contigs(split_size):
     for nid in to_split:
         nv=ws.sdg.get_nodeview(nid)
         seq=nv.sequence()
-        nns=ceil(nv.size()/ceil(nv.size()/split_size))
-        splits=list(range(0,nv.size(),nns))
+        nns=int(ceil(nv.size()/ceil(nv.size()/split_size)))
+        splits=list(range(0,len(seq),nns))
         last_nid=0
         for ci,cstart in enumerate(splits):
-            if ci==len(splits)-1: 
-                new_nid=ws.sdg.add_node(seq[cstart:],False)
-                for lf in nv.next():
-                    ws.sdg.add_link(-new_nid,lf.node().node_id(),lf.distance())
-            else:
-                new_nid=ws.sdg.add_node(seq[cstart:splits[ci+1]+30],False)
-            if last_nid:
-                ws.sdg.add_link(-last_nid,new_nid,-30)
-            else:
+            if ci==0:
+                new_nid=ws.sdg.add_node(seq[:splits[ci+1]+15],False)
                 for lb in nv.prev():
                     ws.sdg.add_link(-lb.node().node_id(),new_nid,lb.distance())
+            else:
+                if ci==len(splits)-1: 
+                    new_nid=ws.sdg.add_node(seq[cstart-15:],False)
+                    for lf in nv.next():
+                        ws.sdg.add_link(-new_nid,lf.node().node_id(),lf.distance())
+                else:
+                    new_nid=ws.sdg.add_node(seq[cstart-15:splits[ci+1]+15],False)
+                ws.sdg.add_link(-last_nid,new_nid,-30)
             last_nid=new_nid
         ws.sdg.remove_node(nid)
                 
