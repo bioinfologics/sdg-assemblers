@@ -36,7 +36,7 @@ print(ws.sdg.stats_by_kci())
 print_step_banner("BREAK LONG CONTIGS")
 
 def split_long_contigs(split_size):
-    to_split=[x.node_id() for x in ws.sdg.get_all_nodeviews() if x.size()>split_size*1.5]
+    to_split=[x.node_id() for x in ws.sdg.get_all_nodeviews() if x.size()>split_size]
     print(f'{len(to_split)} nodes to split',flush=True)
     for nid in to_split:
         nv=ws.sdg.get_nodeview(nid)

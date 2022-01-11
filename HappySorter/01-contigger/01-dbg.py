@@ -28,5 +28,8 @@ print(ws.sdg.simple_structure_stats())
 
 kc=ws.add_kmer_counter("main",args.kci_k)
 kc.add_count("pe",peds)
+with open(f'{args.output_prefix}_pe_kc_spectra.csv','w') as of:
+    for x,c in enumerate(kc.count_spectra("pe"),start=0):
+        of.write(f'{x},{c}\n')
 
 ws.dump(f'{args.output_prefix}_01_dbg.sdgws')
