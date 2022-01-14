@@ -14,7 +14,8 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-i", "--input_workspace", help="input workspace", type=str, required=True)
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
-parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
+parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at kci-k", type=int, required=True)
+parser.add_argument("--map_k", help="k value for k-mer index when mapping", type=int, default=31)
 parser.add_argument("-m", "--min_anchormap_coverage", help="min read kcov value for anchormap (default: 0)", type=int, default=0)
 parser.add_argument("-M", "--max_anchormap_coverage", help="max read kcov value for anchormap (default: 0, uses map without anchor filtering)", type=int, default=0)
 parser.add_argument("-s", "--split_size", help="break contigs into chunks of roughly...", type=int, default=2000)
@@ -66,16 +67,14 @@ kc.update_graph_counts()
 print(ws.sdg.stats_by_kci())
 
 
-lrr=SDG.LongReadsRecruiter(ws.sdg,lords,k=31)
+lrr=SDG.LongReadsRecruiter(ws.sdg,lords,k=args.map_k)
 
 if args.max_anchormap_coverage:
-    if kc.k==31:
-        kc31=kc
+    if kc.k==args.map_k:
         kc_name="main"
     else:
-        kc31=ws.add_kmer_counter("main31",31)
-        kc31.add_count("pe",peds)
-        kc_name="main31"
+        kc_name=f'main{args.map_k}'
+        ws.add_kmer_counter(kc_name,args.map_k).add_count("pe",peds)
     lrr.anchormap(kcname=kc_name, countname='pe', fmin=args.min_anchormap_coverage, fmax=args.max_anchormap_coverage, graph_fmin=1, graph_fmax=1)
 else: lrr.map()
 

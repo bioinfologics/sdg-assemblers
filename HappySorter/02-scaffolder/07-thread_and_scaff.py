@@ -14,7 +14,7 @@ def print_step_banner(s):
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
-parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
+parser.add_argument("-u", "--unique_coverage", help="value for unique coverage on kci", type=int, required=True)
 parser.add_argument("-s", "--min_size", help="min size to keep nodes", type=int, default=500)
 parser.add_argument("--min_kci", help="min kci to keep nodes", type=float, default=.5)
 parser.add_argument("--max_kci", help="max kci to keep nodes", type=float, default=1.5)
@@ -37,6 +37,7 @@ kc.set_kci_peak(args.unique_coverage)
 kc.update_graph_counts()
 print(ws.sdg.stats_by_kci())
 
+lrr.clean_sandwich_matches()
 print_step_banner("REDUCED THREAD GRAPH")
 
 lrr.simple_thread_reads(args.min_hits)
