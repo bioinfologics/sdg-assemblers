@@ -45,7 +45,7 @@ rtg=lrr.rtg_from_threads()
 print(f"rtg with 4+ hits has {len(rtg.get_all_nodeviews(include_disconnected=False))} connected nodes")
 for x in range(3,args.min_hits-1,-1):
     lrr.simple_thread_reads(x)
-    rtg.merge(lrr.rtg_from_threads())
+    rtg=rtg.merge(lrr.rtg_from_threads())
     print(f"after merging with {x}+ hits, rtg has {len(rtg.get_all_nodeviews(include_disconnected=False))} connected nodes")
 
 rtg.dump(f'{args.output_prefix}_07_merged.rtg')
