@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
 parser.add_argument("-l", "--long_datastore", help="long reads datastore", type=str, required=True)
 parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
+parser.add_argument("--map_k", help="long read mapping k", type=int, default=25)
 parser.add_argument("--lr_min_support", help="long read min support to expand canonical repeats", type=int, default=5)
 parser.add_argument("--lr_snr", help="long read SNR to expand canonical repeats", type=int, default=5)
 parser.add_argument("--lr_max_noise", help="long read max_noise to expand canonical repeats", type=int, default=3)
@@ -57,9 +58,10 @@ def solve_with_llr2(nid,min_support=5,max_noise=2,snr=3,verbose=False):
         return [(-pA,nB),(-pB,nA)]
     return []
 
-lrr=SDG.LongReadsRecruiter(ws.sdg,lords)
+lrr=SDG.LongReadsRecruiter(ws.sdg,lords,k=args.map_k)
 lrr.map()
 lrr.simple_thread_reads()
+lrr.clean_sandwich_matches()
 rtg=lrr.rtg_from_threads()
 ge=SDG.GraphEditor(ws)
 
