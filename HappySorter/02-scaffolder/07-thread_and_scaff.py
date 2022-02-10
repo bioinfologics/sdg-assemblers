@@ -137,6 +137,7 @@ while collapsed_lines_to_remove:
     remove_all_transitive_links(rrcg)
     collapsed_lines_to_remove=[l for l in rrcg.get_all_lines(1) if len(l)<10 and solvable_collapse(rrcg,rrtg,l[0],l[-1],20)]
 print(f"simplified closest reliable connections graph has {len(rrcg.get_all_nodeviews(include_disconnected=False))} connected nodes")    
+rrcg.dump(f'{args.output_prefix}_07_crc_simp.dg')
 rrcg.write_to_gfa1(f'{args.output_prefix}_07_crc_simp.gfa',selected_nodes=[x.node_id() for x in rrcg.get_all_nodeviews(include_disconnected=False)])
 
 with open(f'{args.output_prefix}_07_crc_simp.csv','w') as of:
