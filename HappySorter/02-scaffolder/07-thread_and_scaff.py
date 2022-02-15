@@ -23,12 +23,16 @@ parser.add_argument("--min_links", help="threads linking two selected nodes", ty
 #parser.add_argument("--min_link_perc", help="link percentaje to join two selected nodes", type=float, default=.1)
 #parser.add_argument("--max_overlap", help="max overlap to join two selected nodes", type=int, default=200)
 parser.add_argument("--max_thread_count", help="max threads to select a node (to avoid repeats)", type=int, default=1000)
+parser.add_argument("-l", "--long_datastore", help="long reads datastore (default: '' uses the first datastore in the input workspace)", type=str, default='')
 args = parser.parse_args()
 
 ws=SDG.WorkSpace(f'{args.output_prefix}_06_split.sdgws')
 ws.dump(f'{args.output_prefix}_07_graphonly.sdgws',graph_only=True)
 peds=ws.get_paired_reads_datastore(ws.list_paired_reads_datastores()[0])
-lords=ws.get_long_reads_datastore(ws.list_long_reads_datastores()[0])
+if args.long_datastore=='':
+    lords=ws.get_long_reads_datastore(ws.list_long_reads_datastores()[0])
+else:
+    lords = ws.get_long_reads_datastore(args.long_datastore)
 
 lrr=SDG.LongReadsRecruiter(ws.sdg,lords,k=31)
 lrr.load(f'{args.output_prefix}_06_split.lrr')
