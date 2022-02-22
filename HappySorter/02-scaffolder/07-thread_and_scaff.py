@@ -1,4 +1,5 @@
 #!/usr/bin/env python3 -u
+from concurrent.futures import thread
 import SDGpython as SDG
 import argparse
 from collections import Counter
@@ -23,8 +24,43 @@ parser.add_argument("--min_links", help="threads linking two selected nodes", ty
 #parser.add_argument("--min_link_perc", help="link percentaje to join two selected nodes", type=float, default=.1)
 #parser.add_argument("--max_overlap", help="max overlap to join two selected nodes", type=int, default=200)
 parser.add_argument("--max_thread_count", help="max threads to select a node (to avoid repeats)", type=int, default=1000)
+parser.add_argument("--rrtg_edits", help="a file with include/exclude node/links to manually curate the rtg", type=str, default='')
 parser.add_argument("-l", "--long_datastore", help="long reads datastore (default: '' uses the first datastore in the input workspace)", type=str, default='')
 args = parser.parse_args()
+
+included_nodes=set()
+excluded_nodes=set()
+included_links=set()
+excluded_links=set()
+if args.rrtg_edits:
+    with open(args.rrtg_edits) as f:
+        line_no=0
+        for line in f:
+            line_no+=1
+            line=line.strip()
+            if not line or line[0]=="#": continue
+            sline=line.split()
+            try:
+                if sline[0]=='include' and sline[1]=='node':
+                    included_nodes.add(int(sline[2]))
+                elif sline[0]=='exclude' and sline[1]=='node':
+                    excluded_nodes.add(int(sline[2]))
+                if sline[0]=='include' and sline[1]=='link':
+                    n1=abs(int(sline[2]))
+                    n2=abs(int(sline[3]))
+                    included_links.add((min(n1,n2),max(n1,n2)))
+                elif sline[0]=='exclude' and sline[1]=='link':
+                    n1=abs(int(sline[2]))
+                    n2=abs(int(sline[3]))
+                    excluded_links.add((min(n1,n2),max(n1,n2)))
+            except Exception as e:
+                raise ValueError(f"can't parse line {line_no} from rtg_edits file") from e
+    if included_nodes.intersection(excluded_nodes):
+        print(f"There's {len(included_nodes.intersection(excluded_nodes))} nodes in both the included and excluded lists: {included_nodes.intersection(excluded_nodes)}")
+    if included_links.intersection(excluded_links):
+        print(f"There's {len(included_links.intersection(excluded_links))} links in both the included and excluded lists: {included_links.intersection(excluded_links)}")
+    print(f"RRTG edits file loaded with {len(included_nodes)} included nodes, {len(excluded_nodes)} excluded nodes,  {len(included_links)} included links, and {len(excluded_links)} excluded links")
+    
 
 ws=SDG.WorkSpace(f'{args.output_prefix}_06_split.sdgws')
 ws.dump(f'{args.output_prefix}_07_graphonly.sdgws',graph_only=True)
@@ -58,7 +94,7 @@ print_step_banner("REDUCED THREAD GRAPH")
 
 rtg=lrr.rtg_from_threads()
 whitelisted_nvs=[ nv for nv in rtg.get_all_nodeviews() if nv.size()>=args.min_size and nv.kci()<=args.max_kci and nv.kci()>=args.min_kci and len(rtg.node_threads(nv.node_id()))<=args.max_thread_count and len(rtg.node_threads(nv.node_id()))>=args.min_links]
-rrtg=rtg.reduced_graph(set([x.node_id() for x in whitelisted_nvs]))
+rrtg=rtg.reduced_graph(set([x.node_id() for x in whitelisted_nvs if x.node_id() not in excluded_nodes]).union(included_nodes))
 rrtg.dump(f'{args.output_prefix}_07_reduced.rtg')
 
 print(f"reduced rtg has {len(rrtg.get_all_nodeviews(include_disconnected=False))} connected nodes")
@@ -82,18 +118,24 @@ def remove_all_transitive_links(rtg):
             rtg.remove_link(ln[0],ln[1])
 
 rrcg=rrtg.closest_reliable_connections_graph(3,args.min_links)
+if included_links or excluded_links:
+    print("WARNING: usage of included and excluded links not implemented yet.")
 remove_all_transitive_links(rrcg)
 print(f"closest reliable connections graph has {len(rrcg.get_all_nodeviews(include_disconnected=False))} connected nodes")
+rrcg.dump(f'{args.output_prefix}_07_crc.dg')
 rrcg.write_to_gfa1(f'{args.output_prefix}_07_crc.gfa',selected_nodes=[x.node_id() for x in rrcg.get_all_nodeviews(include_disconnected=False)])
 
-# print('Popping all tips')
-# to_remove=[]
-# for nv in crtg.get_all_nodeviews(include_disconnected=False):
-#     if nv.is_tip():
-#         to_remove.append(nv.node_id())
-# print(f'{len(to_remove)} tips found')
-# for nid in to_remove:
-    # rrtg.pop_node_from_all(nid)
+print('Popping all tips')
+to_remove=[]
+for nv in rrcg.get_all_nodeviews(include_disconnected=False):
+    if nv.is_tip():
+        to_remove.append(nv.node_id())
+print(f'{len(to_remove)} tips found')
+for nid in to_remove:
+    rrtg.pop_node_from_all(nid)
+
+rrcg=rrtg.closest_reliable_connections_graph(3,args.min_links)
+remove_all_transitive_links(rrcg)
 
 def is_jumped_repeat(crtg,rtg,nid):
     cnv=crtg.get_nodeview(nid)
