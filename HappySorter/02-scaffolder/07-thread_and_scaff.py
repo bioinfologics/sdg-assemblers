@@ -1,5 +1,5 @@
 #!/usr/bin/env python3 -u
-from concurrent.futures import thread
+from re import A
 import SDGpython as SDG
 import argparse
 from collections import Counter
@@ -21,8 +21,7 @@ parser.add_argument("--min_kci", help="min kci to keep nodes", type=float, defau
 parser.add_argument("--max_kci", help="max kci to keep nodes", type=float, default=1.5)
 parser.add_argument("--min_hits", help="min hits to thread a node", type=int, default=1)
 parser.add_argument("--min_links", help="threads linking two selected nodes", type=int, default=5)
-#parser.add_argument("--min_link_perc", help="link percentaje to join two selected nodes", type=float, default=.1)
-#parser.add_argument("--max_overlap", help="max overlap to join two selected nodes", type=int, default=200)
+parser.add_argument("--include_nodes", help="node group as conditions min_size:max_size:min_kci:max_kci (can be used multiple times)", type=str, nargs='*', action='append', default=[])
 parser.add_argument("--max_thread_count", help="max threads to select a node (to avoid repeats)", type=int, default=1000)
 parser.add_argument("--rrtg_edits", help="a file with include/exclude node/links to manually curate the rtg", type=str, default='')
 parser.add_argument("-l", "--long_datastore", help="long reads datastore (default: '' uses the first datastore in the input workspace)", type=str, default='')
@@ -59,7 +58,17 @@ if args.rrtg_edits:
         print(f"There's {len(included_nodes.intersection(excluded_nodes))} nodes in both the included and excluded lists: {included_nodes.intersection(excluded_nodes)}")
     if included_links.intersection(excluded_links):
         print(f"There's {len(included_links.intersection(excluded_links))} links in both the included and excluded lists: {included_links.intersection(excluded_links)}")
-    print(f"RRTG edits file loaded with {len(included_nodes)} included nodes, {len(excluded_nodes)} excluded nodes,  {len(included_links)} included links, and {len(excluded_links)} excluded links")
+node_groups=[]
+if not args.include_nodes:
+    node_groups=[(args.min_size,100000000,args.min_kci,args.max_kci)]
+else:
+    try:
+        for gs in args.include_nodes:
+            gss=gs[0].split(':')
+            if len(gss)!=4: raise ValueError(f"include_nodes malformed")
+            node_groups.append((int(gss[0]),int(gss[1]),float(gss[2]),float(gss[3])))
+    except Exception as e:
+        raise ValueError(f"can't parse include_nodes arguments") from e
     
 
 ws=SDG.WorkSpace(f'{args.output_prefix}_06_split.sdgws')
@@ -93,8 +102,17 @@ rtg.dump(f'{args.output_prefix}_07_merged.rtg')
 print_step_banner("REDUCED THREAD GRAPH")
 
 rtg=lrr.rtg_from_threads()
-whitelisted_nvs=[ nv for nv in rtg.get_all_nodeviews() if nv.size()>=args.min_size and nv.kci()<=args.max_kci and nv.kci()>=args.min_kci and len(rtg.node_threads(nv.node_id()))<=args.max_thread_count and len(rtg.node_threads(nv.node_id()))>=args.min_links]
-rrtg=rtg.reduced_graph(set([x.node_id() for x in whitelisted_nvs if x.node_id() not in excluded_nodes]).union(included_nodes))
+whitelisted_nvs=set()
+for ng in node_groups:
+    for nv in rtg.get_all_nodeviews():
+        if nv.size()>=ng[0] and nv.size()<=ng[1] and nv.kci()>=ng[2] and nv.kci()<=ng[3] and len(rtg.node_threads(nv.node_id()))<=args.max_thread_count and len(rtg.node_threads(nv.node_id()))>=args.min_links:
+            whitelisted_nvs.add(nv.node_id())
+    print(f'{len(whitelisted_nvs)} nodes selected after adding with size [{ng[0]}, {ng[1]}] and kci [{ng[2]},{ng[3]}]')
+if included_nodes or excluded_nodes:
+    whitelisted_nvs=whitelisted_nvs.union(included_nodes).difference(excluded_nodes)
+    print(f"{len(whitelisted_nvs)} nodes selected after applying {len(included_nodes)} included nodes, and {len(excluded_nodes)} excluded nodes")
+
+rrtg=rtg.reduced_graph(whitelisted_nvs)
 rrtg.dump(f'{args.output_prefix}_07_reduced.rtg')
 
 print(f"reduced rtg has {len(rrtg.get_all_nodeviews(include_disconnected=False))} connected nodes")

@@ -78,5 +78,13 @@ if args.max_anchormap_coverage:
     lrr.anchormap(kcname=kc_name, countname='pe', fmin=args.min_anchormap_coverage, fmax=args.max_anchormap_coverage, graph_fmin=1, graph_fmax=1)
 else: lrr.map()
 
+lrr.simple_thread_reads(2)
+rtg=lrr.rtg_from_threads()
+c=Counter(len(rtg.node_threads(nv.node_id())) for nv in rtg.get_all_nodeviews(include_disconnected=False));
+with open(f'{args.output_prefix}_06_split_threadcounts.csv',"w") as f:
+    f.write('threads, node_count\n')
+    for x in sorted(c.items()):
+        f.write(f'{x[0]}, {x[1]}\n')
+
 lrr.dump(f'{args.output_prefix}_06_split.lrr')
 ws.dump(f'{args.output_prefix}_06_split.sdgws')
