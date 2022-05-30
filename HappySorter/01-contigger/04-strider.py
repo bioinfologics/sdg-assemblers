@@ -13,6 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-o", "--output_prefix", help="prefix for output files", type=str, required=True)
 parser.add_argument("-u", "--unique_coverage", help="value for unique coverage at 31-mers", type=int, required=True)
 parser.add_argument("--strider_rounds", help="rounds of strider (experimental)", type=int, default=3)
+parser.add_argument("--pe_rep_min_support", help="paired read min support to expand canonical repeats", type=int, default=5)
+parser.add_argument("--pe_rep_max_noise", help="paired read max noise to expand canonical repeats", type=int, default=5)
+parser.add_argument("--pe_rep_snr", help="paired read snr to expand canonical repeats", type=int, default=10)
 args = parser.parse_args()
 
 ws=SDG.WorkSpace(f'{args.output_prefix}_03_shortreps.sdgws')
@@ -162,6 +165,14 @@ for sp in range(1,args.strider_rounds+1):
     kc.update_graph_counts()
     print(f"After {sp} rounds of strider:")
     print(ws.sdg.stats_by_kci())
+
+print_step_banner("PE CANONICAL REPEAT RESOLUTION")
+peds.mapper.path_reads()
+c=SDG.GraphContigger(ws)
+c.solve_canonical_repeats(peds,min_support=args.pe_rep_min_support,max_noise=args.pe_rep_max_noise,snr=args.pe_rep_snr)
+kc.update_graph_counts()
+print(ws.sdg.stats_by_kci())
+
 
 ws.sdg.write_to_gfa1(args.output_prefix+"_04_strided.gfa")
 
