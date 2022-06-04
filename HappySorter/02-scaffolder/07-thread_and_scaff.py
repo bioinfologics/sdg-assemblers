@@ -20,6 +20,7 @@ parser.add_argument("-s", "--min_size", help="min size to keep nodes", type=int,
 parser.add_argument("--min_kci", help="min kci to keep nodes", type=float, default=.5)
 parser.add_argument("--max_kci", help="max kci to keep nodes", type=float, default=1.5)
 parser.add_argument("--min_hits", help="min hits to thread a node", type=int, default=1)
+parser.add_argument("--min_bp", help="min bp in hits to thread a node", type=int, default=1)
 parser.add_argument("--min_links", help="threads linking two selected nodes", type=int, default=5)
 parser.add_argument("--include_nodes", help="node group as conditions min_size:max_size:min_kci:max_kci (can be used multiple times)", type=str, nargs='*', action='append', default=[])
 parser.add_argument("--max_thread_count", help="max threads to select a node (to avoid repeats)", type=int, default=1000)
@@ -89,11 +90,11 @@ print(ws.sdg.stats_by_kci())
 
 print_step_banner("MERGING RTGs")
 lrr.clean_sandwich_matches()
-lrr.simple_thread_reads(4)
+lrr.simple_thread_reads(4,args.min_bp)
 rtg=lrr.rtg_from_threads()
 print(f"rtg with 4+ hits has {len(rtg.get_all_nodeviews(include_disconnected=False))} connected nodes")
 for x in range(3,args.min_hits-1,-1):
-    lrr.simple_thread_reads(x)
+    lrr.simple_thread_reads(x,args.min_bp)
     rtg=rtg.merge(lrr.rtg_from_threads())
     print(f"after merging with {x}+ hits, rtg has {len(rtg.get_all_nodeviews(include_disconnected=False))} connected nodes")
 
