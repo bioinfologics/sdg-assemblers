@@ -1,4 +1,4 @@
-#!/usr/bin/env python3 -u
+#!/usr/bin/env -S python3 -u
 from ast import increment_lineno
 import SDGpython as SDG
 import argparse
